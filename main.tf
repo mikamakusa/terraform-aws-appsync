@@ -23,7 +23,7 @@ resource "aws_appsync_datasource" "this" {
   description      = lookup(var.datasource[count.index], "description")
   service_role_arn = var.datasource_service_role_arn
 
-  dynamic "dynamodb_config" {
+  /*dynamic "dynamodb_config" {
     for_each = ""
     content {
       table_name             = ""
@@ -110,7 +110,7 @@ resource "aws_appsync_datasource" "this" {
         }
       }
     }
-  }
+  }*/
 }
 
 resource "aws_appsync_domain_name" "this" {
@@ -227,13 +227,56 @@ resource "aws_appsync_graphql_api" "this" {
 }
 
 resource "aws_appsync_resolver" "this" {
-  api_id = ""
-  field  = ""
-  type   = ""
+  count             = length(var.graphql_api) == 0 ? 0 : length(var.resolver)
+  api_id            = try(element(aws_appsync_graphql_api.this.*.id, lookup(var.resolver[count.index], "api_id")))
+  field             = lookup(var.resolver[count.index], "field")
+  type              = lookup(var.resolver[count.index], "type")
+  code              = file(join("/", [path.cwd, "file", lookup(var.resolver[count.index], "code")]))
+  request_template  = lookup(var.resolver[count.index], "request_template")
+  response_template = lookup(var.resolver[count.index], "response_template")
+  data_source       = lookup(var.resolver[count.index], "data_source")
+  max_batch_size    = lookup(var.resolver[count.index], "max_batch_size")
+  kind              = lookup(var.resolver[count.index], "kind")
+
+  dynamic "caching_config" {
+    for_each = try(lookup(var.resolver[count.index], "caching_config") == null ? [] : ["caching_config"])
+    iterator = cac
+    content {
+      caching_keys = lookup(cac.value, "caching_keys")
+      ttl          = lookup(cac.value, "ttl")
+    }
+  }
+
+  /*dynamic "pipeline_config" {
+    for_each = try(lookup(var.resolver[count.index], "pipeline_config") == null ? [] : ["pipeline_config"])
+    iterator = pip
+    content {
+      functions = []
+    }
+  }*/
+
+  dynamic "runtime" {
+    for_each = try(lookup(var.resolver[count.index], "runtime") == null ? [] : ["runtime"])
+    iterator = run
+    content {
+      name            = lookup(run.value, "name", "APPSYNC_JS")
+      runtime_version = lookup(run.value, "runtime_version", "1.0.0")
+    }
+  }
+
+  dynamic "sync_config" {
+    for_each = try(lookup(var.resolver[count.index], "sync_config") == null ? [] : ["sync_config"])
+    iterator = syn
+    content {
+      conflict_detection = lookup(syn.value, "conflict_detection")
+      conflict_handler   = lookup(syn.value, "conflict_handler")
+    }
+  }
 }
 
 resource "aws_appsync_type" "this" {
-  api_id     = ""
-  definition = ""
-  format     = ""
+  count      = length(var.graphql_api) == 0 ? 0 : length(var.type)
+  api_id     = try(element(aws_appsync_graphql_api.this.*.id, lookup(var.type[count.index], "api_id")))
+  definition = lookup(var.type[count.index], "definition")
+  format     = lookup(var.type[count.index], "format")
 }

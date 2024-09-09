@@ -237,14 +237,56 @@ variable "graphql_api" {
 
 variable "resolver" {
   type = list(object({
-    id = number
+    id                = number
+    api_id            = any
+    field             = string
+    type              = string
+    code              = optional(string)
+    request_template  = optional(string)
+    response_template = optional(string)
+    data_source       = optional(string)
+    max_batch_size    = optional(number)
+    kind              = optional(string)
+    caching_config = optional(list(object({
+      caching_keys = optional(set(string))
+      ttl          = optional(number)
+    })))
+    pipeline_config = optional(list(object({
+      functions_id = any
+    })))
+    runtime = optional(list(object({
+      name            = string
+      runtime_version = string
+    })))
+    sync_config = optional(list(object({
+      conflict_detection = optional(string)
+      conflict_handler   = optional(string)
+    })))
   }))
   default = []
+
+  validation {
+    condition     = length([for a in var.resolver : true if a.max_batch_size >= 0 && a.max_batch_size <= 2000]) == length(var.resolver)
+    error_message = "Maximum batching size for a resolver. Valid values are between 0 and 2000."
+  }
+
+  validation {
+    condition     = length([for b in var.resolver : true if contains(["UNIT", "PIPELINE"], b.kind)]) == length(var.resolver)
+    error_message = "Resolver type. Valid values are UNIT and PIPELINE."
+  }
 }
 
 variable "type" {
   type = list(object({
-    id = number
+    id         = number
+    api_id     = any
+    definition = string
+    format     = string
   }))
   default = []
+
+  validation {
+    condition     = length([for a in var.type : true if contains(["SDL", "JSON"], a.format)]) == length(var.type)
+    error_message = "Valid values are SDL and JSON."
+  }
 }
